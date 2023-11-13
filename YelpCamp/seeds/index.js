@@ -35,9 +35,14 @@ const seedDB = async () => {
     // Generate a random index to select a city from the cities.js file
     const random1000 = Math.floor(Math.random() * 1000);
     // Create a new Campground instance with a location and title
+    const price = Math.floor(Math.random() * 20) + 10;
     const camp = new Campground({
       location: `${cities[random1000].city}, ${cities[random1000].state}`,
       title: `${sample(descriptors)} ${sample(places)}`,
+      image: "https://source.unsplash.com/collection/483251",
+      description:
+        "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Quos quasi, impedit nesciunt vel, eligendi dicta optio consectetur animi error dolores corrupti corporis cum illo eum.",
+      price,
     });
     // Save the new campground entry to the database
     await camp.save();

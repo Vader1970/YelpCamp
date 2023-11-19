@@ -1,9 +1,11 @@
 // // Import necessary modules
 const express = require("express");
-const app = express();
 const path = require("path");
 const mongoose = require("mongoose");
 const ejsMate = require("ejs-mate");
+const { campgroundSchema } = require("./schemas");
+const catchAsync = require("./utils/catchAsync");
+const ExpressError = require("./utils/ExpressError");
 const methodOverride = require("method-override");
 const Campground = require("./models/campgrounds");
 
@@ -18,111 +20,111 @@ const db = mongoose
     console.log(err);
   });
 
-// // Create an Express application
-// const app = express();
+// Create an Express application
+const app = express();
 
-// // Set the view engine to EJS and specify the views directory
-// define layout files with ejsMate
+// Configure EJS as the view engine
 app.engine("ejs", ejsMate);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-// // Parse the body for req.body
+// Middleware for parsing URL-encoded request bodies and method override
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
 
-// Define a route for the home page
+// Middleware for validating campground data against a schema
+const validateCampground = (req, res, next) => {
+  const { error } = campgroundSchema.validate(req.body);
+  if (error) {
+    const msg = error.details.map((el) => el.message).join(",");
+    throw new ExpressError(msg, 400);
+  } else {
+    next();
+  }
+};
+
+// Define routes and associated middleware
 app.get("/", (req, res) => {
-  // TEST
-  // res.send("HELLO");
   // Render the "home" view
   res.render("home");
 });
 
-// Check connection with database
-// app.get("/makecampground", async (req, res) => {
-//   const camp = new Campground({ title: "My Backyard", description: "Cheap Camping!" });
-//   await camp.save();
-//   res.send(camp);
-// });
+// Fetch all campgrounds from the database and render the "campgrounds/index" view
+app.get(
+  "/campgrounds",
+  catchAsync(async (req, res) => {
+    const campgrounds = await Campground.find({});
+    res.render("campgrounds/index", { campgrounds });
+  })
+);
 
-// *********CRUD*********
-// CRUD for campgrounds - READ
-// Define a route for displaying a list of all campgrounds
-app.get("/campgrounds", async (req, res) => {
-  // Retrieve all campgrounds from the database
-  const campgrounds = await Campground.find({});
-  // Render the "campgrounds/index" view, passing the retrieved campgrounds as data
-  res.render("campgrounds/index", { campgrounds });
-});
-
-// CRUD - CREATE - ORDER MATTERS - BEFORE SHOW BECAUSE OF ID
-// Route for displaying the form to create a new campground
+// Render the "campgrounds/new" view for creating a new campground
 app.get("/campgrounds/new", (req, res) => {
-  // Render the "campgrounds/new" view for creating a new campground
   res.render("campgrounds/new");
 });
 
-// Route for handling the creation of a new campground
-app.post("/campgrounds", async (req, res) => {
-  // Create a new Campground instance using the data from the request body
-  const campground = new Campground(req.body.campground);
-  // Save the new campground to the database
-  await campground.save();
-  // Redirect to the show page for the newly created campground
-  res.redirect(`/campgrounds/${campground._id}`);
+// Validate campground data, then create and save a new campground to the database
+app.post(
+  "/campgrounds",
+  validateCampground,
+  catchAsync(async (req, res, next) => {
+    // if (!req.body.campground) throw new ExpressError('Invalid Campground Data', 400);
+    const campground = new Campground(req.body.campground);
+    await campground.save();
+    res.redirect(`/campgrounds/${campground._id}`);
+  })
+);
+
+// Fetch a specific campground by ID and render the "campgrounds/show" view
+app.get(
+  "/campgrounds/:id",
+  catchAsync(async (req, res) => {
+    const campground = await Campground.findById(req.params.id);
+    res.render("campgrounds/show", { campground });
+  })
+);
+
+// Fetch a specific campground by ID and render the "campgrounds/edit" view
+app.get(
+  "/campgrounds/:id/edit",
+  catchAsync(async (req, res) => {
+    const campground = await Campground.findById(req.params.id);
+    res.render("campgrounds/edit", { campground });
+  })
+);
+
+// Validate campground data, then find and update a campground in the database
+app.put(
+  "/campgrounds/:id",
+  validateCampground,
+  catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
+    res.redirect(`/campgrounds/${campground._id}`);
+  })
+);
+
+// Delete a specific campground by ID from the database
+app.delete(
+  "/campgrounds/:id",
+  catchAsync(async (req, res) => {
+    const { id } = req.params;
+    await Campground.findByIdAndDelete(id);
+    res.redirect("/campgrounds");
+  })
+);
+
+// Middleware for handling 404 errors
+app.all("*", (req, res, next) => {
+  next(new ExpressError("Page Not Found", 404));
 });
 
-// CRUD - SHOW
-// Define a route for displaying details of a specific campground
-app.get("/campgrounds/:id", async (req, res) => {
-  // Retrieve the campground with the specified ID from the database
-  const campground = await Campground.findById(req.params.id);
-  // Render the "campgrounds/show" view, passing the retrieved campground as data
-  res.render("campgrounds/show", { campground });
+// Middleware for handling errors and rendering the error view
+app.use((err, req, res, next) => {
+  const { statusCode = 500 } = err;
+  if (!err.message) err.message = "Oh No, Something Went Wrong!";
+  res.status(statusCode).render("error", { err });
 });
-
-// CRUD EDIT
-// Route for displaying the form to edit a specific campground
-app.get("/campgrounds/:id/edit", async (req, res) => {
-  // Retrieve the campground with the specified ID from the database
-  const campground = await Campground.findById(req.params.id);
-  // Render the "campgrounds/edit" view, passing the retrieved campground as data
-  res.render("campgrounds/edit", { campground });
-});
-
-// Route for handling the update of a specific campground
-app.put("/campgrounds/:id", async (req, res) => {
-  // Test
-  //   res.send("IT WORKS!!");
-  // Extract the campground ID from the request parameters
-  const { id } = req.params;
-  // Find and update the campground in the database with the data from the request body
-  const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
-  // Redirect to the show page for the updated campground
-  res.redirect(`/campgrounds/${campground._id}`);
-});
-
-// CRUD - DELETE - RESTful ROUTE
-// Route for handling the deletion of a specific campground
-app.delete("/campgrounds/:id", async (req, res) => {
-  // Extract the campground ID from the request parameters
-  const { id } = req.params;
-  // Find and delete the campground with the specified ID from the database
-  await Campground.findByIdAndDelete(id);
-  // Redirect to the list of all campgrounds after deletion
-  res.redirect("/campgrounds");
-});
-
-// // // Define a route for creating a campground (temporary route for testing)
-// // app.get("/makecampground", async (req, res) => {
-// //   // Create a new Campground instance with sample data
-// //   const camp = new Campground({ title: "My Backyard", description: "CHEAP CAMPING!" });
-// //   // Save the new campground to the database
-// //   await camp.save();
-// //   // Send a response containing the newly created campground data
-// //   res.send(camp);
-// // });
 
 // Start the Express application and listen on port 3000
 app.listen(3000, () => {

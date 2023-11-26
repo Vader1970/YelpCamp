@@ -7,12 +7,19 @@ const session = require("express-session");
 const flash = require("connect-flash");
 const ExpressError = require("./utils/ExpressError");
 const methodOverride = require("method-override");
+const passport = require("passport");
+const LocalStrategy = require("passport-local");
+const User = require("./models/user");
+
+// ROUTES
+// Require User route
+const userRoutes = require("./routes/user");
 
 // Require campgrounds route
-const campgrounds = require("./routes/campgrounds");
+const campgroundRoutes = require("./routes/campgrounds");
 
 // Require reviews route
-const reviews = require("./routes/reviews");
+const reviewRoutes = require("./routes/reviews");
 
 // Connect to the MongoDB database
 const db = mongoose
@@ -56,16 +63,38 @@ app.use(session(sessionConfig));
 // Initialize Flash
 app.use(flash());
 
+// Initialize passport
+app.use(passport.initialize());
+app.use(passport.session());
+passport.use(new LocalStrategy(User.authenticate()));
+
+// Store and un-store user session
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
 // Define success, error flash middleware
 app.use((req, res, next) => {
+  console.log(req.session);
+  if (!["/login", "/"].includes(req.originalUrl)) {
+    req.session.returnTo = req.originalUrl;
+  }
+  // For Navbar
+  res.locals.currentUser = req.user;
   res.locals.success = req.flash("success");
   res.locals.error = req.flash("error");
   next();
 });
 
+app.get("/fakeUser", async (req, res) => {
+  const user = new User({ email: "dan@gmail.com", username: "dan" });
+  const newUser = await User.register(user, "chicken");
+  res.send(newUser);
+});
+
 // Define app.use express routes handlers
-app.use("/campgrounds", campgrounds);
-app.use("/campgrounds/:id/reviews", reviews);
+app.use("/", userRoutes);
+app.use("/campgrounds", campgroundRoutes);
+app.use("/campgrounds/:id/reviews", reviewRoutes);
 
 // Define routes and associated middleware
 app.get("/", (req, res) => {

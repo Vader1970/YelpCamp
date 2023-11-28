@@ -74,11 +74,12 @@ passport.deserializeUser(User.deserializeUser());
 
 // Define success, error flash middleware
 app.use((req, res, next) => {
-  console.log(req.session);
+  // console.log(req.session);
+  // Return to Url (except login) if user is not logged in
   if (!["/login", "/"].includes(req.originalUrl)) {
     req.session.returnTo = req.originalUrl;
   }
-  // For Navbar
+  // currentUser For Navbar
   res.locals.currentUser = req.user;
   res.locals.success = req.flash("success");
   res.locals.error = req.flash("error");

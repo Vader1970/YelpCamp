@@ -2,7 +2,7 @@
 const mongoose = require("mongoose");
 const cities = require("./cities");
 const { places, descriptors } = require("./seedHelpers");
-const Campground = require("../models/campgrounds");
+const Campground = require("../models/campground");
 
 // Connect to the MongoDB database
 const db = mongoose
@@ -37,6 +37,7 @@ const seedDB = async () => {
     // Create a new Campground instance with a location and title
     const price = Math.floor(Math.random() * 20) + 10;
     const camp = new Campground({
+      author: "6563c452ce4b40c83806799b",
       location: `${cities[random1000].city}, ${cities[random1000].state}`,
       title: `${sample(descriptors)} ${sample(places)}`,
       image: "https://source.unsplash.com/collection/483251",

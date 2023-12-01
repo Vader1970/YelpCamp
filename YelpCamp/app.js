@@ -1,3 +1,8 @@
+// Run env file in development mode
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
+
 // // Import necessary modules
 const express = require("express");
 const path = require("path");

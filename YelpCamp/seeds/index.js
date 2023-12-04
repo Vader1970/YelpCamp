@@ -31,7 +31,7 @@ const sample = (array) => array[Math.floor(Math.random() * array.length)];
 const seedDB = async () => {
   // Clear existing campground data from the database
   await Campground.deleteMany({});
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 300; i++) {
     // Generate a random index to select a city from the cities.js file
     const random1000 = Math.floor(Math.random() * 1000);
     // Create a new Campground instance with a location and title
@@ -47,7 +47,7 @@ const seedDB = async () => {
       price,
       geometry: {
         type: "Point",
-        coordinates: [-113.133115, 47.020078],
+        coordinates: [cities[random1000].longitude, cities[random1000].latitude],
       },
       images: [
         {
